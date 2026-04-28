@@ -1,0 +1,6 @@
+python-telegram-bot==20.7
+requests
+pandas
+numpy
+yfinance>=0.2.54
+apscheduler==3.10.4
