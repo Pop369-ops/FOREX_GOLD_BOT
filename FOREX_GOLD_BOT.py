@@ -1990,17 +1990,26 @@ async def handle_msg(u: Update, c: ContextTypes.DEFAULT_TYPE):
 
 async def handle_btn(u: Update, c: ContextTypes.DEFAULT_TYPE):
     q = u.callback_query
-    await q.answer()
     action, sym = q.data.split(":", 1)
     chat_id = q.message.chat_id
 
     if action == "r":
+        await q.answer()
         await q.edit_message_text(f"⏳ تحديث *{sym}*...", parse_mode="Markdown")
         R = await run_analysis(sym)
         await q.edit_message_text(
             build_signal(R), parse_mode="Markdown", reply_markup=kb(sym))
     elif action == "w":
+        # ⭐ زر تابع — مع التحقق من JobQueue
         try:
+            if c.job_queue is None:
+                await q.answer(
+                    "❌ JobQueue غير مفعّل\n"
+                    "أضف في requirements.txt:\n"
+                    "python-telegram-bot[job-queue]==20.7",
+                    show_alert=True)
+                return
+
             watching.setdefault(chat_id, {})[sym] = True
             jn = f"fx_{chat_id}_{sym}"
             for j in c.job_queue.get_jobs_by_name(jn):
@@ -2008,10 +2017,13 @@ async def handle_btn(u: Update, c: ContextTypes.DEFAULT_TYPE):
             c.job_queue.run_repeating(
                 monitor_job, interval=1800, first=60,
                 data={"chat_id": chat_id, "sym": sym}, name=jn)
-            await q.answer(f"✅ متابعة {sym} — كل 30 دقيقة", show_alert=True)
+            await q.answer(
+                f"✅ تم تفعيل المتابعة\n{sym} — كل 30 دقيقة",
+                show_alert=True)
         except Exception as ex:
-            await q.answer(f"خطأ: {str(ex)[:40]}", show_alert=True)
+            await q.answer(f"❌ خطأ: {str(ex)[:60]}", show_alert=True)
     elif action == "s":
+        await q.answer()
         wait_txt=f"⚡ جاري Scalp *{sym}* على 1m/5m..."
         await q.edit_message_text(wait_txt,parse_mode="Markdown")
         result_msg,err=await run_scalp_analysis(sym,"5m")
